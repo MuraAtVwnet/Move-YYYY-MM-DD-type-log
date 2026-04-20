@@ -12,9 +12,18 @@ YYYY-MM-DD タイプのログファイル(.log)を月ごとにサブフォルダ
 引数を省略した場合は、前月を処理対象となります
 
 
+■ 動作確認
+Windows PowerShell 5.1
+(PowerShell 7.x でも動作すると思います)
+
+
 ■ リポジトリ
 以下で公開しています
 
 https://github.com/MuraAtVwnet/Move-YYYY-MM-DD-type-log
 git@github.com:MuraAtVwnet/Move-YYYY-MM-DD-type-log.git
 
+
+■ Web Site
+PowerShell で YYYY-MM-DD 形式のログファイルをサブフォルダーに移動する
+https://www.vwnet.jp/Windows/PowerShell/2026042001/MoveLogFile.htm
