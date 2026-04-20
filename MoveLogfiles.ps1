@@ -4,6 +4,8 @@
     [string]$TargetMonth
 )
 
+$ErrorActionPreference = 'Stop'
+
 # 対象フォルダー
 $BasePath = 'C:\Log'
 
@@ -17,7 +19,6 @@ else {
 
 Write-Host "処理対象月: $ProcessMonth"
 
-# 対象月の年月情報
 try {
     $ProcessDate = [datetime]::ParseExact(($ProcessMonth + '-01'), 'yyyy-MM-dd', $null)
 }
@@ -25,8 +26,12 @@ catch {
     throw "TargetMonth の形式が不正です。YYYY-MM 形式で指定してください。"
 }
 
-# .log ファイルを対象月のフォルダーへ移動
-$Files = Get-ChildItem -Path $BasePath -Filter '*.log' -File -ErrorAction Stop
+if (-not (Test-Path -LiteralPath $BasePath)) {
+    throw "対象フォルダーが存在しません: $BasePath"
+}
+
+# 直下の .log だけを対象
+$Files = Get-ChildItem -LiteralPath $BasePath -Filter '*.log' -File
 
 foreach ($File in $Files) {
     if ($File.Name -match '(?<DateText>\d{4}-\d{2}-\d{2})') {
@@ -36,7 +41,6 @@ foreach ($File in $Files) {
             $FileDate  = [datetime]::ParseExact($DateText, 'yyyy-MM-dd', $null)
             $FileMonth = $FileDate.ToString('yyyy-MM')
 
-            # 指定月だけ処理
             if ($FileMonth -ne $ProcessMonth) {
                 continue
             }
@@ -44,12 +48,12 @@ foreach ($File in $Files) {
             $DestinationFolder = Join-Path -Path $BasePath -ChildPath $FileMonth
 
             if (-not (Test-Path -LiteralPath $DestinationFolder)) {
-                New-Item -Path $DestinationFolder -ItemType Directory -Force -ErrorAction Stop | Out-Null
+                New-Item -Path $DestinationFolder -ItemType Directory -Force | Out-Null
             }
 
             $DestinationPath = Join-Path -Path $DestinationFolder -ChildPath $File.Name
 
-            Move-Item -LiteralPath $File.FullName -Destination $DestinationPath -Force -ErrorAction Stop
+            Move-Item -LiteralPath $File.FullName -Destination $DestinationPath -Force
             Write-Host "移動成功: $($File.Name) -> $FileMonth"
         }
         catch {
@@ -62,14 +66,14 @@ foreach ($File in $Files) {
     }
 }
 
-# 1月を処理対象にした場合は、前年分の月フォルダーを前年フォルダー配下へまとめる
+# 1月を処理対象にした場合は、前年分の月フォルダーを前年フォルダー配下へ移動
 if ($ProcessDate.Month -eq 1) {
     $PreviousYear = ($ProcessDate.Year - 1).ToString()
     $YearFolder   = Join-Path -Path $BasePath -ChildPath $PreviousYear
 
     if (-not (Test-Path -LiteralPath $YearFolder)) {
         try {
-            New-Item -Path $YearFolder -ItemType Directory -Force -ErrorAction Stop | Out-Null
+            New-Item -Path $YearFolder -ItemType Directory -Force | Out-Null
             Write-Host "年フォルダー作成: $YearFolder"
         }
         catch {
@@ -78,8 +82,7 @@ if ($ProcessDate.Month -eq 1) {
         }
     }
 
-    # 前年の月フォルダー (YYYY-MM) を列挙
-    $PreviousYearMonthFolders = Get-ChildItem -Path $BasePath -Directory -ErrorAction Stop |
+    $PreviousYearMonthFolders = Get-ChildItem -LiteralPath $BasePath -Directory |
         Where-Object {
             $_.Name -match ('^{0}-(0[1-9]|1[0-2])$' -f [regex]::Escape($PreviousYear))
         }
@@ -88,13 +91,12 @@ if ($ProcessDate.Month -eq 1) {
         try {
             $DestinationYearChild = Join-Path -Path $YearFolder -ChildPath $MonthFolder.Name
 
-            # 既に前年フォルダー内に同名フォルダーがある場合はスキップ
             if (Test-Path -LiteralPath $DestinationYearChild) {
                 Write-Warning "移動先に同名フォルダーが既に存在するためスキップ: $DestinationYearChild"
                 continue
             }
 
-            Move-Item -LiteralPath $MonthFolder.FullName -Destination $YearFolder -ErrorAction Stop
+            Move-Item -LiteralPath $MonthFolder.FullName -Destination $YearFolder
             Write-Host "年次整理: $($MonthFolder.Name) -> $PreviousYear\$($MonthFolder.Name)"
         }
         catch {
@@ -103,4 +105,3 @@ if ($ProcessDate.Month -eq 1) {
         }
     }
 }
-
